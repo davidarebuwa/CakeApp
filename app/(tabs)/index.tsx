@@ -1,75 +1,135 @@
-import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
+import { useEffect, useState } from 'react';
+import {
+  StyleSheet,
+  SafeAreaView,
+  ScrollView,
+  FlatList,
+  Text,
+  View,
+  Button,
+  Alert,
+  Platform,
+} from 'react-native';
 
 import { HelloWave } from '@/components/HelloWave';
-import ParallaxScrollView from '@/components/ParallaxScrollView';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 
+interface Product {
+  id: string;
+  title: string;
+  variants: {
+    id: string;
+    title: string;
+    price: string;
+  }[];
+}
+
+const dummyProducts: Product[] = [
+  {
+    id: '1',
+    title: 'Chocolate Cake',
+    variants: [
+      { id: '1a', title: 'Small', price: '5.99' },
+      { id: '1b', title: 'Large', price: '9.99' },
+    ],
+  },
+  {
+    id: '2',
+    title: 'Vanilla Cupcake',
+    variants: [
+      { id: '2a', title: 'Box of 6', price: '4.99' },
+      { id: '2b', title: 'Box of 12', price: '8.99' },
+    ],
+  },
+];
+
 export default function HomeScreen() {
+  const [products, setProducts] = useState<Product[]>([]);
+
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      setProducts(dummyProducts);
+    }, 500);
+    return () => clearTimeout(timeout);
+  }, []);
+
+  const handleCreateCustomer = () => {
+    Alert.alert('Create Customer', 'Dummy button pressed');
+  };
+
+  const renderItem = ({ item }: { item: Product }) => (
+    <View style={styles.productContainer}>
+      <Text style={styles.productTitle}>{item.title}</Text>
+      {item.variants.map((variant) => (
+        <Text key={variant.id} style={styles.variant}>
+          {variant.title} — ${variant.price}
+        </Text>
+      ))}
+    </View>
+  );
+
   return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
-        <HelloWave />
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({
-              ios: 'cmd + d',
-              android: 'cmd + m',
-              web: 'F12',
-            })}
-          </ThemedText>{' '}
-          to open developer tools.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-        <ThemedText>
-          {`Tap the Explore tab to learn more about what's included in this starter app.`}
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          {`When you're ready, run `}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-        </ThemedText>
-      </ThemedView>
-    </ParallaxScrollView>
+    <SafeAreaView style={styles.safeArea}>
+      <ScrollView contentContainerStyle={styles.container}>
+        <ThemedView style={styles.titleContainer}>
+          <ThemedText type="title">Welcome!</ThemedText>
+          <HelloWave />
+        </ThemedView>
+
+        <ThemedView style={styles.stepContainer}>
+          <ThemedText type="subtitle">🧁 Dummy Products</ThemedText>
+          <FlatList
+            data={products}
+            keyExtractor={(item) => item.id}
+            renderItem={renderItem}
+            scrollEnabled={false}
+            contentContainerStyle={styles.flatListContent}
+          />
+        </ThemedView>
+
+        <ThemedView style={styles.stepContainer}>
+          <Button title="Create Customer + Get Token" onPress={handleCreateCustomer} />
+        </ThemedView>
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: '#fff',
+  },
+  container: {
+    paddingHorizontal: 20,
+    paddingVertical: 24,
+  },
   titleContainer: {
     flexDirection: 'row',
     alignItems: 'center',
+    marginBottom: 16,
     gap: 8,
   },
   stepContainer: {
-    gap: 8,
-    marginBottom: 8,
+    marginBottom: 24,
   },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
+  productContainer: {
+    marginBottom: 12,
+    padding: 12,
+    backgroundColor: '#f2f2f2',
+    borderRadius: 8,
+  },
+  productTitle: {
+    fontWeight: 'bold',
+    fontSize: 17,
+    marginBottom: 4,
+  },
+  variant: {
+    fontSize: 15,
+    marginLeft: 12,
+  },
+  flatListContent: {
+    paddingBottom: 8,
   },
 });
