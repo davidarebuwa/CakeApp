@@ -2,18 +2,18 @@ import { useEffect, useState } from 'react';
 import {
   StyleSheet,
   SafeAreaView,
-  ScrollView,
   FlatList,
   Text,
   View,
   Button,
   Alert,
-  Platform,
+  Dimensions,
 } from 'react-native';
+
+import { fetchProducts, createCustomerAndToken } from '@/hooks/useShopify';
 
 import { HelloWave } from '@/components/HelloWave';
 import { ThemedText } from '@/components/ThemedText';
-import { ThemedView } from '@/components/ThemedView';
 
 interface Product {
   id: string;
@@ -21,77 +21,102 @@ interface Product {
   variants: {
     id: string;
     title: string;
-    price: string;
+    price: {
+      amount: string;
+      currencyCode: string;
+    };
   }[];
 }
 
-const dummyProducts: Product[] = [
-  {
-    id: '1',
-    title: 'Chocolate Cake',
-    variants: [
-      { id: '1a', title: 'Small', price: '5.99' },
-      { id: '1b', title: 'Large', price: '9.99' },
-    ],
-  },
-  {
-    id: '2',
-    title: 'Vanilla Cupcake',
-    variants: [
-      { id: '2a', title: 'Box of 6', price: '4.99' },
-      { id: '2b', title: 'Box of 12', price: '8.99' },
-    ],
-  },
-];
+const emojiMap: Record<string, string> = {
+  shirt: '👕',
+  bag: '👜',
+  socks: '🧦',
+  flip: '🩴',
+  default: '🛍️',
+};
+
+function getEmojiForProduct(title: string) {
+  const key = title.toLowerCase();
+  if (key.includes('shirt')) return emojiMap.shirt;
+  if (key.includes('bag')) return emojiMap.bag;
+  if (key.includes('sock')) return emojiMap.socks;
+  if (key.includes('flip')) return emojiMap.flip;
+  return emojiMap.default;
+}
+
+const numColumns = 2;
+const screenWidth = Dimensions.get('window').width;
+const CARD_MARGIN = 10;
+const CARD_WIDTH = (screenWidth - CARD_MARGIN * (numColumns + 1)) / numColumns;
 
 export default function HomeScreen() {
   const [products, setProducts] = useState<Product[]>([]);
 
   useEffect(() => {
-    const timeout = setTimeout(() => {
-      setProducts(dummyProducts);
-    }, 500);
-    return () => clearTimeout(timeout);
+    fetchProducts()
+      .then(setProducts)
+      .catch((err) => {
+        console.error(err);
+        Alert.alert('Error', 'Failed to fetch products');
+      });
   }, []);
 
-  const handleCreateCustomer = () => {
-    Alert.alert('Create Customer', 'Dummy button pressed');
+  const handleCreateCustomer = async () => {
+    try {
+      const token = await createCustomerAndToken('your.email@test.com', 'YourSecureP@ssw0rd123');
+      Alert.alert('Access Token', token?.accessToken ?? 'No token returned');
+    } catch (err: any) {
+      Alert.alert('Error', err.message ?? 'Something went wrong');
+    }
   };
 
-  const renderItem = ({ item }: { item: Product }) => (
-    <View style={styles.productContainer}>
-      <Text style={styles.productTitle}>{item.title}</Text>
-      {item.variants.map((variant) => (
-        <Text key={variant.id} style={styles.variant}>
-          {variant.title} — ${variant.price}
-        </Text>
-      ))}
-    </View>
-  );
+  const renderItem = ({ item }: { item: Product }) => {
+    const emoji = getEmojiForProduct(item.title);
+
+    return (
+      <View style={styles.card}>
+        <Text style={styles.emoji}>{emoji}</Text>
+        <Text style={styles.productTitle}>{item.title}</Text>
+
+        <View style={styles.variantContainer}>
+          {item.variants.map((variant) => (
+            <View key={variant.id} style={styles.variantTag}>
+              <Text style={styles.variantText}>
+                {variant.title === 'Default Title' ? 'One Size' : variant.title} -{' '}
+                {variant.price.amount} {variant.price.currencyCode}
+              </Text>
+            </View>
+          ))}
+        </View>
+      </View>
+    );
+  };
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <ScrollView contentContainerStyle={styles.container}>
-        <ThemedView style={styles.titleContainer}>
-          <ThemedText type="title">Welcome!</ThemedText>
-          <HelloWave />
-        </ThemedView>
-
-        <ThemedView style={styles.stepContainer}>
-          <ThemedText type="subtitle">🧁 Dummy Products</ThemedText>
-          <FlatList
-            data={products}
-            keyExtractor={(item) => item.id}
-            renderItem={renderItem}
-            scrollEnabled={false}
-            contentContainerStyle={styles.flatListContent}
-          />
-        </ThemedView>
-
-        <ThemedView style={styles.stepContainer}>
-          <Button title="Create Customer + Get Token" onPress={handleCreateCustomer} />
-        </ThemedView>
-      </ScrollView>
+      <FlatList
+        data={products}
+        keyExtractor={(item) => item.id}
+        renderItem={renderItem}
+        numColumns={numColumns}
+        columnWrapperStyle={styles.row}
+        contentContainerStyle={styles.listContainer}
+        ListHeaderComponent={
+          <View style={styles.header}>
+            <View style={styles.welcomeRow}>
+              <ThemedText type="title">Welcome to CakeShop!</ThemedText>
+              <HelloWave />
+            </View>
+            <Text style={styles.subHeader}>🛍️ Browse Our Products</Text>
+          </View>
+        }
+        ListFooterComponent={
+          <View style={styles.footer}>
+            <Button title="Create Customer + Get Token" onPress={handleCreateCustomer} />
+          </View>
+        }
+      />
     </SafeAreaView>
   );
 }
@@ -99,37 +124,76 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
+    backgroundColor: '#fafafa',
+  },
+  listContainer: {
+    paddingHorizontal: CARD_MARGIN,
+    paddingTop: 16,
+    paddingBottom: 32,
+  },
+  row: {
+    justifyContent: 'space-between',
+    marginBottom: CARD_MARGIN,
+  },
+  card: {
     backgroundColor: '#fff',
-  },
-  container: {
-    paddingHorizontal: 20,
-    paddingVertical: 24,
-  },
-  titleContainer: {
-    flexDirection: 'row',
+    borderRadius: 12,
+    width: CARD_WIDTH,
+    paddingVertical: 20,
+    paddingHorizontal: 12,
+    shadowColor: '#000',
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 3,
+    borderColor: '#eaeaea',
+    borderWidth: 1,
     alignItems: 'center',
+    justifyContent: 'space-between',
     marginBottom: 16,
-    gap: 8,
   },
-  stepContainer: {
-    marginBottom: 24,
-  },
-  productContainer: {
-    marginBottom: 12,
-    padding: 12,
-    backgroundColor: '#f2f2f2',
-    borderRadius: 8,
+  emoji: {
+    fontSize: 48,
+    marginBottom: 10,
   },
   productTitle: {
-    fontWeight: 'bold',
-    fontSize: 17,
-    marginBottom: 4,
+    fontSize: 16,
+    fontWeight: '600',
+    textAlign: 'center',
+    marginBottom: 12,
+    color: '#222',
   },
-  variant: {
-    fontSize: 15,
-    marginLeft: 12,
+  variantContainer: {
+    width: '100%',
+    flexDirection: 'column',
+    gap: 6,
   },
-  flatListContent: {
-    paddingBottom: 8,
+  variantTag: {
+    backgroundColor: '#f5f5f5',
+    borderRadius: 50,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    alignSelf: 'flex-start',
+  },
+  variantText: {
+    fontSize: 13,
+    color: '#444',
+    fontWeight: '500',
+  },
+  header: {
+    marginBottom: 24,
+    paddingHorizontal: 4,
+  },
+  welcomeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 8,
+  },
+  subHeader: {
+    fontSize: 16,
+    color: '#555',
+  },
+  footer: {
+    paddingTop: 16,
   },
 });
